@@ -143,7 +143,11 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return 2;
+  // 德摩根
+  // A | B
+  // ~(~A & ~B)
+
+  return ~(~x&~y) & ~(x&y);
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -153,7 +157,7 @@ int bitXor(int x, int y) {
  */
 int tmin(void) {
 
-  return 2;
+  return 1<<31;
 
 }
 //2
@@ -165,7 +169,10 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  return 2;
+  // 1<<31 = tmin
+  // ~tmin = tmax
+  // 如果x就是tmax，那么每一位相同
+  return !(x ^ (~(1<<31)));
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -176,7 +183,10 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+  int a = 0xAA; // 10101010 (2)
+  a = a << 8 | a;
+  a = a << 16 | a;
+  return !((a&x) ^ a);
 }
 /* 
  * negate - return -x 
@@ -186,7 +196,9 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  x = ~x;
+  x = x+1;
+  return x;
 }
 //3
 /* 
@@ -199,7 +211,11 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  // 0x30 = 0011 0000
+  // 0x39 = 0011 1001
+  int ans = !((x >> 3) ^ 0x6); // 0x30 - 0x37
+  int ans2 = !((x>>1) ^ 0x1C);
+  return ans | ans2;
 }
 /* 
  * conditional - same as x ? y : z 
@@ -209,7 +225,10 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+  // !!x如果x==0就返回0，否则1
+  // 然后利用arithmetic shift复制符号位
+  int mask = (!!x) << 31 >> 31;
+  return (mask&y) | (~mask&z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -219,7 +238,8 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  int cmp = y + ((~x)+1);
+  return !(cmp>>31);
 }
 //4
 /* 
@@ -231,7 +251,7 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  return !((x << 1) ^ x);
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -246,7 +266,35 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  int ans = 1, tmp;
+
+  int y = ~x, z = x;
+  int mask = x >> 31;
+  x = (mask&y) | (~mask&z);
+
+  tmp = !!(x >> 16) << 4;
+  ans += tmp;
+  x = x >> tmp;
+
+  tmp = !!(x >> 8) << 3;
+  ans += tmp;
+  x = x >> tmp;
+
+  tmp = !!(x >> 4) << 2;
+  ans += tmp;
+  x = x >> tmp;
+
+  tmp = !!(x >> 2) << 1;
+  ans += tmp;
+  x = x >> tmp;
+
+  tmp = !!(x >> 1);
+  ans += tmp;
+  x = x >> tmp;
+
+  ans += x;
+
+  return ans;
 }
 //float
 /* 
@@ -261,7 +309,25 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  unsigned sign, exp, frac, f = uf;
+
+  sign = uf & 0x80000000;
+  uf   = uf & 0x7FFFFFFF;
+  frac = uf & 0x007FFFFF;
+  exp  = (uf >> 23) & 0xFF;
+
+  if (exp == 0xFF) return f;
+  if (exp == 0x00)
+  {
+    uf = uf << 1;
+    return uf | sign;
+  }
+
+
+  exp = exp + 1;
+  if (exp == 0xFF) frac = 0;
+  uf = (exp << 23) | frac | sign;
+  return uf;
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -276,7 +342,31 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+  unsigned sign, exp, frac, f = uf, ans, realE;
+
+  sign = uf & 0x80000000;
+  uf   = uf & 0x7FFFFFFF;
+  frac = uf & 0x007FFFFF;
+  exp  = (uf >> 23) & 0xFF;
+
+  if (exp == 0xFF) return 0x80000000; // inf, nan
+  if (exp < 127) return 0; // less than 1
+
+  realE = exp - 127;
+  if (realE >= 32) return 0x80000000; // overflow 
+  
+
+  frac = (1<<23) | frac; // add hidden 1.xxx
+
+  if (realE > 23)
+    frac = frac << (realE - 23);
+  else 
+    frac = frac >> (23 - realE);
+
+  if (sign == 0x80000000)
+    frac = (~frac) + 1;
+  
+  return frac;
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -292,5 +382,24 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+  unsigned ans, exp, frac;
+
+  if (x <= -127) // denormalized 
+  {
+    // min denormalized
+    // (2^-126) * (2^-23) = 2^-149
+    // so 2^x = 2^(-149+149+x)
+    if ((149+x) < 0) return 0;
+    ans = 1 << (149+x);
+    return ans;
+  }
+  if (x >= 128)
+  {
+    return 0xFF << 23;
+  }
+
+
+  exp = x + 127;
+  ans = exp << 23;
+  return ans;
 }
