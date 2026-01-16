@@ -46,6 +46,8 @@ English version will be available soon
 
 `delete checkpoint <id>`: 删除快照。
 
+`objdump -s -j .rodata bomb` 查看静态只读数据
+
 
 # Phase 1
 
@@ -133,26 +135,26 @@ func4运行完之后还会检测第二个数字，别被坑了（第二个很简
   # mid = left + (range/2)
 
 
-  400fe4:	7e 0c                	jle    400ff2 <func4+0x24> # if (mid > input), left part
+  400fe4:	7e 0c                	jle    400ff2 <func4+0x24>          # if (mid > input), left part
 
   # left part
   # [left, mid-1]
-  400fe6:	8d 51 ff             	lea    -0x1(%mid),%right # right = mid - 1
+  400fe6:	8d 51 ff             	lea    -0x1(%mid),%right            # right = mid - 1
   400fe9:	e8 e0 ff ff ff       	call   400fce <func4>
-  400fee:	01 c0                	add    %range,%range # range = 2 * range
+  400fee:	01 c0                	add    %range,%range                # range = 2 * range
   400ff0:	eb 15                	jmp    401007 <func4+0x39>
 
   # right part
   # [mid+1, right]
   400ff2:	b8 00 00 00 00       	mov    $0x0,%range
   400ff7:	39 f9                	cmp    %input,%mid
-  400ff9:	7d 0c                	jge    401007 <func4+0x39> # if (mid >= input) ret
-  400ffb:	8d 71 01             	lea    0x1(%mid),%left # left = mid + 1
+  400ff9:	7d 0c                	jge    401007 <func4+0x39>          # if (mid >= input) ret
+  400ffb:	8d 71 01             	lea    0x1(%mid),%left              # left = mid + 1
   400ffe:	e8 cb ff ff ff       	call   400fce <func4>
-  401003:	8d 44 00 01          	lea    0x1(%range,%range,1),%range # range = 2*range + 1
+  401003:	8d 44 00 01          	lea    0x1(%range,%range,1),%range  # range = 2*range + 1
 
   401007:	48 83 c4 08          	add    $0x8,%rsp
-  40100b:	c3                   	ret # ret range (eax)
+  40100b:	c3                   	ret                                 # ret range (eax)
 
 
 # all caller saved
@@ -160,6 +162,50 @@ func4运行完之后还会检测第二个数字，别被坑了（第二个很简
 # left --- esi
 # right --- edx
 # input --- rdi (constant)
+```
+
+
+
+# Phase 5
+
+字符转码表
+`4024b0 maduiersnfotvbyl`
+
+答案
+`40245e flyers`
+
+简单的for循环，遍历每个字符，然后查表转换之后放到stack
+
+```asm
+# OBJDUMP
+
+# phase_5(char* input)
+# %index = %rax
+# %input = %rdi
+
+# FOR loop, index = [0, 6)
+  40108b:	0f b6 0c 03          	movzbl (%rbx,%index,1),%ecx     # rcx = *(input + index), get each input char
+  40108f:	88 0c 24             	mov    %cl,(%rsp)               # stacktop = rcx
+  401092:	48 8b 14 24          	mov    (%rsp),%rdx              # rdx = stacktop = rcx
+  401096:	83 e2 0f             	and    $0xf,%edx                # rdx = stacktop & 0xF
+  401099:	0f b6 92 b0 24 40 00 	movzbl 0x4024b0(%rdx),%edx      # rdx = *(0x4024b0 + rdx), get lower 4 bits
+
+                                                                # rdx = *[*(input+index) & 0xF + 0x4024b0]
+                                                                # find 0x4024b0 + bias
+
+  4010a0:	88 54 04 10          	mov    %dl,0x10(%rsp,%index,1)  # *(rsp+index+10) = rdx (the correspoding data)
+  4010a4:	48 83 c0 01          	add    $0x1,%index              # index++
+  4010a8:	48 83 f8 06          	cmp    $0x6,%index              # if (index == 6) break
+  4010ac:	75 dd                	jne    40108b <phase_5+0x29>
+                                                                # rsp+(10 to 15) are where passwords are saved, on stack
+
+
+  4010ae:	c6 44 24 16 00       	movb   $0x0,0x16(%rsp)          # \0
+  4010b3:	be 5e 24 40 00       	mov    $0x40245e,%esi
+  4010b8:	48 8d 7c 24 10       	lea    0x10(%rsp),%rdi          # compare (coded input) against ($0x40245e)
+  4010bd:	e8 76 02 00 00       	call   401338 <strings_not_equal>
+  4010c2:	85 c0                	test   %index,%index
+  4010c4:	74 13                	je     4010d9 <phase_5+0x77>
 ```
 
 
@@ -172,3 +218,5 @@ Border relations with Canada have never been better.
 7 327
 
 7 0
+
+ionefg
