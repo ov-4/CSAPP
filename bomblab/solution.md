@@ -10,6 +10,21 @@ remember to set a breakpoint for ALL `<explode_bomb>`, so that your GPA won't be
 
 English version will be available soon
 
+👍😍❤️ _ov4
+
+```
+➜  bomblab git:(main) ✗ ./bomb ans.txt
+Welcome to my fiendish little bomb. You have 6 phases with
+which to blow yourself up. Have a nice day!
+Phase 1 defused. How about the next one?
+That's number 2.  Keep going!
+Halfway there!
+So you got that one.  Try this one.
+Good work!  On to the next...
+Congratulations! You've defused the bomb!
+➜  bomblab git:(main) ✗ 
+```
+
 
 # commands
 
@@ -209,14 +224,43 @@ func4运行完之后还会检测第二个数字，别被坑了（第二个很简
 ```
 
 
+# Phase 6
+
+汇编太长了，自己去`phase6.asm`看，有完整的注释
+
+1. 输入`6`个数组，检测是否在`[1, 6]`，并且没有重复
+
+2. 假设原来的输入是`x`，将它转换成`7-x`，存储在`[rsp, rsp+20]` （`rsp+23`是最后一个占用的字节）
+
+3. 按coded input的顺序，将地址提取到`rsp+32`开始的连续内存；如果coded input是`4 5 1 2 3`，那么rsp+32开始的指针对应的就是`node 4, 5, 2, 1, 3`的地址
+
+4. 更新`node.next`，指向重新连接之后的下一个`node`，使得`next`的顺序与`[rsp+32, rsp+72]`存储的顺序相符（ie. 不要了`rsp+32`之后的内容，也知道重新连接之后的链表的顺序）
+
+5. 检测顺序（要求是降序）；很明显 ，`node 3, 4, 5, 6, 1, 2`排序时刚好降序，答案自然就出来了
+
+
+
+```c
+// 16 bytes each
+struct idk {
+  int num;    // 4 bytes
+  int index;  // 4 bytes
+  idk *next;  // 8 bytes
+} node[6];
+```
+
+```
+gef➤  x/24dwx 0x6032d0
+0x6032d0 <node1>:       0x0000014c      0x00000001      0x006032e0    0x00000000
+0x6032e0 <node2>:       0x000000a8      0x00000002      0x006032f0    0x00000000
+0x6032f0 <node3>:       0x0000039c      0x00000003      0x00603300    0x00000000
+0x603300 <node4>:       0x000002b3      0x00000004      0x00603310    0x00000000
+0x603310 <node5>:       0x000001dd      0x00000005      0x00603320    0x00000000
+0x603320 <node6>:       0x000001bb      0x00000006      0x00000000    0x00000000
+```
+
+
+
 ## Solution
 
-Border relations with Canada have never been better.
-
-1 2 4 8 16 32
-
-7 327
-
-7 0
-
-ionefg
+See `ans.txt`
