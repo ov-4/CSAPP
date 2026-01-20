@@ -13,7 +13,7 @@ English version will be available soon
 👍😍❤️ _ov4
 
 ```
-➜  bomblab git:(main) ✗ ./bomb ans.txt
+➜  bomblab git:(main) ✗ ./bomb ans.txt 
 Welcome to my fiendish little bomb. You have 6 phases with
 which to blow yourself up. Have a nice day!
 Phase 1 defused. How about the next one?
@@ -21,6 +21,9 @@ That's number 2.  Keep going!
 Halfway there!
 So you got that one.  Try this one.
 Good work!  On to the next...
+Curses, you've found the secret phase!
+But finding it and solving it are quite different...
+Wow! You've defused the secret stage!
 Congratulations! You've defused the bomb!
 ➜  bomblab git:(main) ✗ 
 ```
@@ -97,7 +100,7 @@ Congratulations! You've defused the bomb!
 
 %esi对应的是格式字符
 
-0x4025cf:       "%d %d"
+`0x4025cf:       "%d %d"`
 
 需要输入2个整数
 
@@ -133,55 +136,13 @@ func4运行完之后还会检测第二个数字，别被坑了（第二个很简
      0x40104f <phase_4+0043>   jne    0x401058 <phase_4+76>     TAKEN [Reason: !Z]
    ↳    0x401058 <phase_4+004c>   call   0x40143a <explode_bomb>
 ```
-```asm
-# OBJDUMP
-0000000000400fce <func4>:
-  400fce:	48 83 ec 08          	sub    $0x8,%rsp
 
-  400fd2:	89 d0                	mov    %right,%range
-  400fd4:	29 f0                	sub    %left,%range
-  400fd6:	89 c1                	mov    %range,%mid
-  400fd8:	c1 e9 1f             	shr    $0x1f,%mid
-  400fdb:	01 c8                	add    %mid,%range
-  400fdd:	d1 f8                	sar    $1,%range
-  400fdf:	8d 0c 30             	lea    (%range,%left,1),%mid
-  400fe2:	39 f9                	cmp    %input,%mid
-  # range = right - left
-  # mid = left + (range/2)
-
-
-  400fe4:	7e 0c                	jle    400ff2 <func4+0x24>          # if (mid > input), left part
-
-  # left part
-  # [left, mid-1]
-  400fe6:	8d 51 ff             	lea    -0x1(%mid),%right            # right = mid - 1
-  400fe9:	e8 e0 ff ff ff       	call   400fce <func4>
-  400fee:	01 c0                	add    %range,%range                # range = 2 * range
-  400ff0:	eb 15                	jmp    401007 <func4+0x39>
-
-  # right part
-  # [mid+1, right]
-  400ff2:	b8 00 00 00 00       	mov    $0x0,%range
-  400ff7:	39 f9                	cmp    %input,%mid
-  400ff9:	7d 0c                	jge    401007 <func4+0x39>          # if (mid >= input) ret
-  400ffb:	8d 71 01             	lea    0x1(%mid),%left              # left = mid + 1
-  400ffe:	e8 cb ff ff ff       	call   400fce <func4>
-  401003:	8d 44 00 01          	lea    0x1(%range,%range,1),%range  # range = 2*range + 1
-
-  401007:	48 83 c4 08          	add    $0x8,%rsp
-  40100b:	c3                   	ret                                 # ret range (eax)
-
-
-# all caller saved
-# range --- eax
-# left --- esi
-# right --- edx
-# input --- rdi (constant)
-```
-
+另见 `phase4.asm`
 
 
 # Phase 5
+
+`phase5.asm`
 
 字符转码表
 `4024b0 maduiersnfotvbyl`
@@ -191,37 +152,6 @@ func4运行完之后还会检测第二个数字，别被坑了（第二个很简
 
 简单的for循环，遍历每个字符，然后查表转换之后放到stack
 
-```asm
-# OBJDUMP
-
-# phase_5(char* input)
-# %index = %rax
-# %input = %rdi
-
-# FOR loop, index = [0, 6)
-  40108b:	0f b6 0c 03          	movzbl (%rbx,%index,1),%ecx     # rcx = *(input + index), get each input char
-  40108f:	88 0c 24             	mov    %cl,(%rsp)               # stacktop = rcx
-  401092:	48 8b 14 24          	mov    (%rsp),%rdx              # rdx = stacktop = rcx
-  401096:	83 e2 0f             	and    $0xf,%edx                # rdx = stacktop & 0xF
-  401099:	0f b6 92 b0 24 40 00 	movzbl 0x4024b0(%rdx),%edx      # rdx = *(0x4024b0 + rdx), get lower 4 bits
-
-                                                                # rdx = *[*(input+index) & 0xF + 0x4024b0]
-                                                                # find 0x4024b0 + bias
-
-  4010a0:	88 54 04 10          	mov    %dl,0x10(%rsp,%index,1)  # *(rsp+index+10) = rdx (the correspoding data)
-  4010a4:	48 83 c0 01          	add    $0x1,%index              # index++
-  4010a8:	48 83 f8 06          	cmp    $0x6,%index              # if (index == 6) break
-  4010ac:	75 dd                	jne    40108b <phase_5+0x29>
-                                                                # rsp+(10 to 15) are where passwords are saved, on stack
-
-
-  4010ae:	c6 44 24 16 00       	movb   $0x0,0x16(%rsp)          # \0
-  4010b3:	be 5e 24 40 00       	mov    $0x40245e,%esi
-  4010b8:	48 8d 7c 24 10       	lea    0x10(%rsp),%rdi          # compare (coded input) against ($0x40245e)
-  4010bd:	e8 76 02 00 00       	call   401338 <strings_not_equal>
-  4010c2:	85 c0                	test   %index,%index
-  4010c4:	74 13                	je     4010d9 <phase_5+0x77>
-```
 
 
 # Phase 6
@@ -260,7 +190,19 @@ gef➤  x/24dwx 0x6032d0
 ```
 
 
+# Secret
 
-## Solution
+`phase_defused`不是简单的函数！！
+
+如果在phase 4的时候匹配到3个有效输入（不是2个吗？自己去看看汇编就知道了），并且第三个输入和预设的相符，那么就会在phase 6之后开启隐藏关
+
+带有注释的汇编 `secret.asm`
+
+二叉树 `tree.txt`
+
+自己看看注释就知道怎么做了（~~其实是太困了不想写了，心态也崩了~~）
+
+
+# Solution
 
 See `ans.txt`
