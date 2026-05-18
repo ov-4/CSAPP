@@ -91,6 +91,8 @@ ie. `0x5561DCB1` = little endian `b1 dc 61 55 00 00 00 00`
 
 NB. 不要自己编译`farm.c`，因为你的结果可能和`rtarget`中不同；正确做法是在`rtarget`反编译的汇编中找到`start_farm()`到`end_farm()`的代码
 
+phase 4只需要用到`start_farm()` `mid_farm()`
+
 可以观察到
 
 `58 90 c3`
