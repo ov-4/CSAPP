@@ -32,7 +32,7 @@ public:
 
 vector<vector<ov4Cache>> cache;
 
-void findFreeSlot(const size_t Tag, const size_t Set) // evaCnt
+void findFreeSlot(const size_t Tag, const size_t Set) // update evaCnt
 {
     // if we can find free slot!
     auto findFree = find_if(cache[Set].begin(), cache[Set].end(),
@@ -43,7 +43,7 @@ void findFreeSlot(const size_t Tag, const size_t Set) // evaCnt
     if (findFree != cache[Set].end())
     {
         findFree->valid = true;
-        findFree->time = timeCnt;
+        findFree->time = timeCnt; // very important to update time
         findFree->tag = Tag;
         return;
     }
@@ -60,13 +60,14 @@ void findFreeSlot(const size_t Tag, const size_t Set) // evaCnt
     findOld->tag = Tag;
 }
 
-void solve(const size_t addr) // hitCnt, missCnt
+void solve(const size_t addr) // update hitCnt, missCnt
 {
     timeCnt++;
     size_t Tag, Set;
     Tag = addr >> (s+b);
     Set = ((addr << (64-s-b)) >> (64-s-b))>>b;
 
+    // determine hit/miss
     auto res = find_if(cache[Set].begin(), cache[Set].end(),
         [&](const ov4Cache &c)
     {
@@ -75,7 +76,7 @@ void solve(const size_t addr) // hitCnt, missCnt
     if (res != cache[Set].end())
     {
         hitCnt++;
-        res->time = timeCnt;
+        res->time = timeCnt; // update the time, because we use it again
         return;
     }
 
@@ -123,6 +124,9 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // handle every line
+    // NB. `L` `S` are acutally same operations in terms of counting
+    // for `M`, it can be treated as `L` followed by `S`, and subsequently twice `solve()`
     string line;
     while (getline(file, line))
     {
